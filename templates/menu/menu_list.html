@@ -1,0 +1,212 @@
+{% extends 'base/base.html' %}
+
+{% block content %}
+<div class="container">
+    <!-- Category Filter -->
+    <div class="row mb-4">
+        <div class="col">
+            <h2 class="mb-3">Our Menu</h2>
+            <div class="btn-group">
+                <button class="btn btn-outline-primary active" data-category="all">All</button>
+                {% for category in categories %}
+                <button class="btn btn-outline-primary" data-category="{{ category.id }}">
+                    {{ category.name }}
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Menu Items Grid -->
+    <div class="row" id="menu-items">
+        {% for item in menu_items %}
+        <div class="col-md-4 mb-4 menu-item" data-category="{{ item.category.id }}">
+            <div class="card h-100">
+                {% if item.image %}
+                <img src="{{ item.image.url }}" class="card-img-top" alt="{{ item.name }}" style="height: 200px; object-fit: cover;">
+                {% else %}
+                <img src="https://via.placeholder.com/300x200" class="card-img-top" alt="{{ item.name }}">
+                {% endif %}
+                <div class="card-body">
+                    <h5 class="card-title">{{ item.name }}</h5>
+                    <p class="card-text">{{ item.description }}</p>
+                    <p class="card-text"><strong>Price: ₹{{ item.price }}</strong></p>
+                    <button class="btn btn-primary add-to-cart" data-item-id="{{ item.id }}" 
+                            data-item-name="{{ item.name }}" data-item-price="{{ item.price }}">
+                        Add to Order
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Order Modal -->
+<div class="modal fade" id="orderModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Place Order</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="orderForm">
+                    <input type="hidden" id="itemId">
+                    <div class="mb-3">
+                        <label class="form-label">Item</label>
+                        <input type="text" class="form-control" id="itemName" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Quantity</label>
+                        <input type="number" class="form-control" id="quantity" min="1" value="1">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Special Instructions</label>
+                        <textarea class="form-control" id="specialInstructions" 
+                                  placeholder="Any special requests?"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Total Price</label>
+                        <input type="text" class="form-control" id="totalPrice" readonly>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="placeOrder">Place Order</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Category filter functionality
+    document.querySelectorAll('[data-category]').forEach(button => {
+        button.addEventListener('click', (e) => {
+            document.querySelectorAll('[data-category]').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            e.target.classList.add('active');
+            
+            const category = e.target.dataset.category;
+            document.querySelectorAll('.menu-item').forEach(item => {
+                if (category === 'all' || item.dataset.category === category) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+    });
+
+    // Order modal functionality
+    const orderModal = new bootstrap.Modal(document.getElementById('orderModal'));
+    let currentItemPrice = 0;
+
+    // Add to cart button click
+    document.querySelectorAll('.add-to-cart').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const itemId = e.target.dataset.itemId;
+            const itemName = e.target.dataset.itemName;
+            currentItemPrice = parseFloat(e.target.dataset.itemPrice);
+
+            document.getElementById('itemId').value = itemId;
+            document.getElementById('itemName').value = itemName;
+            document.getElementById('quantity').value = 1;
+            updateTotalPrice(1);
+            
+            orderModal.show();
+        });
+    });
+
+    // Update total price when quantity changes
+    document.getElementById('quantity').addEventListener('input', (e) => {
+        updateTotalPrice(e.target.value);
+    });
+
+    function updateTotalPrice(quantity) {
+        const total = currentItemPrice * quantity;
+        document.getElementById('totalPrice').value = `₹${total.toFixed(2)}`;
+    }
+
+    // Place order
+    // Replace your existing place order event listener with this:
+// Place order
+document.getElementById('placeOrder').addEventListener('click', async () => {
+    const orderButton = document.getElementById('placeOrder');
+    orderButton.disabled = true;
+    orderButton.textContent = 'Placing Order...';
+
+    try {
+        // Get values from the form
+        const itemId = document.getElementById('itemId').value;
+        const quantity = document.getElementById('quantity').value;
+        const specialInstructions = document.getElementById('specialInstructions').value;
+
+        const response = await fetch('/api/orders/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                items: [{
+                    menu_item: parseInt(itemId),
+                    quantity: parseInt(quantity)
+                }],
+                special_instructions: specialInstructions
+            })
+        });
+
+        // Log the raw response
+        const responseText = await response.text();
+        console.log('Raw response:', responseText);
+
+        // Try to parse JSON only if there's content
+        let data;
+        if (responseText) {
+            try {
+                data = JSON.parse(responseText);
+            } catch (e) {
+                console.error('JSON parse error:', e);
+                throw new Error('Invalid response format from server');
+            }
+        }
+
+        if (!response.ok) {
+            throw new Error(data?.detail || 'Failed to place order');
+        }
+
+        console.log('Order placed successfully:', data);
+        alert('Order placed successfully!');
+        orderModal.hide();
+        window.location.href = '/api/web/orders/';
+    } catch (error) {
+        console.error('Error placing order:', error);
+        alert('Error placing order: ' + error.message);
+    } finally {
+        orderButton.disabled = false;
+        orderButton.textContent = 'Place Order';
+    }
+});
+
+    // Helper function to get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends 'base/base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h2 class="card-title text-success mb-4">Order Placed Successfully!</h2>
+                    <p class="card-text">Your order has been received and is being processed.</p>
+                    <p class="card-text">Order #{{ order.id }}</p>
+                    <div class="mt-4">
+                        <a href="{% url 'order-list' %}" class="btn btn-primary me-2">View Orders</a>
+                        <a href="{% url 'menu-list' %}" class="btn btn-outline-primary">Back to Menu</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

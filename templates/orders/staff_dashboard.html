@@ -1,0 +1,224 @@
+{% extends 'base/base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Order Dashboard</h2>
+    
+    <!-- Order Status Filter -->
+    <div class="mb-4">
+        <div class="btn-group">
+            <button class="btn btn-outline-primary active" data-status="all">All Orders</button>
+            <button class="btn btn-outline-primary" data-status="PLACED">Placed</button>
+            <button class="btn btn-outline-warning" data-status="PREPARING">Preparing</button>
+            <button class="btn btn-outline-success" data-status="READY">Ready</button>
+            <button class="btn btn-outline-info" data-status="COMPLETED">Completed</button>
+            <button class="btn btn-outline-danger" data-status="CANCELLED">Cancelled</button>
+        </div>
+    </div>
+
+    <!-- Orders Table -->
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    <th>Customer</th>
+                    <th>Items</th>
+                    <th>Total</th>
+                    <th>Current Status</th>
+                    <th>New Status</th>
+                    <th>Time</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr class="order-row" data-status="{{ order.status }}">
+                    <td>#{{ order.id }}</td>
+                    <td>{{ order.user.username }}</td>
+                    <td>
+                        {% for item in order.items.all %}
+                        <div>{{ item.quantity }}x {{ item.menu_item.name }}</div>
+                        {% endfor %}
+                        {% if order.special_instructions %}
+                        <small class="text-muted">Note: {{ order.special_instructions }}</small>
+                        {% endif %}
+                    </td>
+                    <td>₹{{ order.total_amount }}</td>
+                    <td>
+                        <span class="badge 
+                            {% if order.status == 'PLACED' %}bg-primary
+                            {% elif order.status == 'PREPARING' %}bg-warning
+                            {% elif order.status == 'READY' %}bg-success
+                            {% elif order.status == 'COMPLETED' %}bg-info
+                            {% else %}bg-danger{% endif %}">
+                            {{ order.get_status_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <form class="update-status-form" method="post" 
+                              action="{% url 'orders:update-order-status' order.id %}">
+                            {% csrf_token %}
+                            <select class="form-select form-select-sm status-select" 
+                                    name="status">
+                                <option value="">Select New Status</option>
+                                {% for status_code, status_label in order.STATUS_CHOICES %}
+                                    {% if status_code != order.status %}
+                                    <option value="{{ status_code }}">{{ status_label }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-primary mt-2">
+                                Update Status
+                            </button>
+                        </form>
+                    </td>
+                    <td>{{ order.created_at|date:"M d, H:i" }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary update-status" 
+                                data-order-id="{{ order.id }}">
+                            Update Status
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Success Modal -->
+<div class="modal fade" id="successModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">Success</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="successMessage"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Error Modal -->
+<div class="modal fade" id="errorModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Error</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="errorMessage"></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+    const errorModal = new bootstrap.Modal(document.getElementById('errorModal'));
+
+    // Handle form submission
+    document.querySelectorAll('.update-status-form').forEach(form => {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const select = this.querySelector('.status-select');
+            const newStatus = select.value;
+            const submitButton = this.querySelector('button');
+
+            if (!newStatus) {
+                document.getElementById('errorMessage').textContent = 'Please select a new status';
+                errorModal.show();
+                return;
+            }
+
+            // Show loading state
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Updating...';
+
+            try {
+                const formData = new FormData(this);
+                const response = await fetch(this.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                });
+
+                const data = await response.json();
+                console.log('Response:', data);
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to update status');
+                }
+
+                // Show success message
+                document.getElementById('successMessage').textContent = data.message;
+                successModal.show();
+
+                // Update the status badge immediately
+                const row = this.closest('tr');
+                const statusBadge = row.querySelector('.badge');
+                if (statusBadge) {
+                    statusBadge.textContent = data.status_display;
+                    statusBadge.className = 'badge ' + getStatusClass(data.status);
+                }
+
+                // Reset form and button
+                submitButton.disabled = false;
+                submitButton.innerHTML = 'Update Status';
+                select.value = '';
+
+                // Refresh page after success
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+
+            } catch (error) {
+                console.error('Error:', error);
+                // Reset button state
+                submitButton.disabled = false;
+                submitButton.innerHTML = 'Update Status';
+                
+                document.getElementById('errorMessage').textContent = error.message;
+                errorModal.show();
+            }
+        });
+    });
+
+    function getStatusClass(status) {
+        const statusClasses = {
+            'PLACED': 'bg-primary',
+            'PREPARING': 'bg-warning',
+            'READY': 'bg-success',
+            'COMPLETED': 'bg-info',
+            'CANCELLED': 'bg-danger'
+        };
+        return statusClasses[status] || 'bg-secondary';
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+});
+</script>
+{% endblock %} 

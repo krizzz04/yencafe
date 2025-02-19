@@ -1,0 +1,5 @@
+Django>=3.2.0
+djangorestframework>=3.12.0
+Pillow>=8.0.0  # for image handling
+qrcode>=7.0    # for QR code generation
+django-cors-headers>=3.7.0 

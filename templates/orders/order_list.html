@@ -1,0 +1,203 @@
+{% extends 'base/base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>My Orders</h2>
+    <div class="row">
+        {% for order in orders %}
+        <div class="col-md-6 mb-4">
+            <div class="card" data-order-id="{{ order.id }}">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Order #{{ order.id }}</h5>
+                    <span class="badge 
+                        {% if order.status == 'PLACED' %}bg-primary
+                        {% elif order.status == 'PREPARING' %}bg-warning
+                        {% elif order.status == 'READY' %}bg-success
+                        {% elif order.status == 'COMPLETED' %}bg-info
+                        {% else %}bg-danger{% endif %}">
+                        {{ order.get_status_display }}
+                    </span>
+                </div>
+                <div class="card-body">
+                    <h6>Items:</h6>
+                    <ul class="list-unstyled">
+                        {% for item in order.items.all %}
+                        <li>{{ item.quantity }}x {{ item.menu_item.name }} - ₹{{ item.price }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% if order.special_instructions %}
+                    <p class="text-muted"><small>Note: {{ order.special_instructions }}</small></p>
+                    {% endif %}
+                    <p class="mb-0"><strong>Total: ₹{{ order.total_amount }}</strong></p>
+                    <p class="text-muted mb-0"><small>Ordered on: {{ order.created_at|date:"M d, Y H:i" }}</small></p>
+                    
+                    <!-- Cancel Order Button - Only show for PLACED orders -->
+                    {% if order.status == 'PLACED' %}
+                    <div class="mt-3">
+                        <button class="btn btn-danger btn-sm cancel-order" 
+                                data-order-id="{{ order.id }}">
+                            Cancel Order
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Success Modal -->
+<div class="modal fade" id="successModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">Success</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="successMessage"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-success" data-bs-dismiss="modal">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Error Modal -->
+<div class="modal fade" id="errorModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Error</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="errorMessage"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger" data-bs-dismiss="modal">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+    const errorModal = new bootstrap.Modal(document.getElementById('errorModal'));
+
+    // Cancel order functionality
+    document.querySelectorAll('.cancel-order').forEach(button => {
+        button.addEventListener('click', async function() {
+            const orderId = this.dataset.orderId;
+            
+            if (confirm('Are you sure you want to cancel this order?')) {
+                try {
+                    const response = await fetch(`/api/orders/${orderId}/`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({
+                            status: 'CANCELLED'
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.detail || 'Failed to cancel order');
+                    }
+
+                    // Show success message
+                    document.getElementById('successMessage').textContent = 
+                        'Order cancelled successfully';
+                    successModal.show();
+
+                    // Refresh page after success
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+
+                } catch (error) {
+                    console.error('Error:', error);
+                    document.getElementById('errorMessage').textContent = 
+                        `Failed to cancel order: ${error.message}`;
+                    errorModal.show();
+                }
+            }
+        });
+    });
+
+    // Auto-refresh functionality
+    async function refreshOrderStatus() {
+        try {
+            const response = await fetch('/api/orders/');
+            const orders = await response.json();
+            
+            orders.forEach(order => {
+                const orderCard = document.querySelector(`[data-order-id="${order.id}"]`);
+                if (orderCard) {
+                    const statusBadge = orderCard.querySelector('.badge');
+                    const cancelButton = orderCard.querySelector('.cancel-order');
+                    
+                    if (statusBadge) {
+                        // Update status text
+                        statusBadge.textContent = order.status_display;
+                        
+                        // Update badge color
+                        statusBadge.className = 'badge ' + getStatusClass(order.status);
+                        
+                        // Show/hide cancel button based on status
+                        if (cancelButton) {
+                            cancelButton.style.display = 
+                                order.status === 'PLACED' ? 'block' : 'none';
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error refreshing order status:', error);
+        }
+    }
+
+    // Helper functions
+    function getStatusClass(status) {
+        const statusClasses = {
+            'PLACED': 'bg-primary',
+            'PREPARING': 'bg-warning',
+            'READY': 'bg-success',
+            'COMPLETED': 'bg-info',
+            'CANCELLED': 'bg-danger'
+        };
+        return statusClasses[status] || 'bg-secondary';
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Refresh status every 30 seconds
+    setInterval(refreshOrderStatus, 30000);
+
+    // Initial refresh
+    refreshOrderStatus();
+});
+</script>
+{% endblock %} 
