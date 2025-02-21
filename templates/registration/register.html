@@ -1,27 +1,463 @@
 {% extends 'base/base.html' %}
 
 {% block content %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="text-center">Register</h3>
-                </div>
-                <div class="card-body">
-                    <form method="post">
-                        {% csrf_token %}
-                        {{ form.as_p }}
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary">Register</button>
+<div class="register-wrapper">
+    <div class="register-container">
+        <div class="background-shapes">
+            <div class="shape circle"></div>
+            <div class="shape square"></div>
+            <div class="shape triangle"></div>
+            <div class="shape rectangle"></div>
+        </div>
+        
+        <div class="container">
+            <div class="row justify-content-center align-items-center min-vh-100">
+                <div class="col-12 col-md-8 col-lg-6 col-xl-5">
+                    <div class="register-card">
+                        <div class="card-body p-4 p-md-5">
+                            <div class="text-center mb-4">
+                                <h1 class="register-title">Create Account</h1>
+                                <p class="register-subtitle">Please fill in the details to get started</p>
+                            </div>
+
+                            <form method="post" class="register-form needs-validation" novalidate>
+                                {% csrf_token %}
+                                
+                                {% for field in form %}
+                                <div class="mb-4 input-group-animate">
+                                    <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                                    {{ field }}
+                                    {% if field.help_text %}
+                                    <div class="form-text">{{ field.help_text }}</div>
+                                    {% endif %}
+                                    {% if field.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ field.errors|first }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+
+                                <div class="d-grid gap-2 mt-4 mb-4">
+                                    <button type="submit" class="btn btn-primary btn-lg register-btn">
+                                        <span class="btn-text">Register</span>
+                                        <div class="btn-loader d-none">
+                                            <div class="spinner-border spinner-border-sm" role="status">
+                                                <span class="visually-hidden">Loading...</span>
+                                            </div>
+                                        </div>
+                                    </button>
+                                </div>
+
+                                <div class="text-center">
+                                    <p class="login-text mb-0">
+                                        Already have an account? 
+                                        <a href="{% url 'login' %}" class="login-link">Login here</a>
+                                    </p>
+                                </div>
+                            </form>
                         </div>
-                    </form>
-                    <div class="text-center mt-3">
-                        <p>Already have an account? <a href="{% url 'login' %}">Login here</a></p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
-{% endblock %} 
+
+<style>
+/* Wrapper and Container */
+.register-wrapper {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+.register-container {
+    min-height: 100vh;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Card styles */
+.register-card {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 16px;
+    border: none;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    transform: translateY(30px);
+    opacity: 0;
+    animation: slideUpFade 0.6s ease-out forwards;
+    margin: 1rem auto;
+    max-width: 100%;
+    width: 100%;
+}
+
+/* Typography */
+.register-title {
+    color: #2C3E50;
+    font-size: clamp(1.75rem, 4vw, 2rem);
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    animation: fadeIn 0.6s ease-out 0.2s both;
+}
+
+.register-subtitle {
+    color: #95A5A6;
+    font-size: clamp(0.875rem, 2vw, 1rem);
+    animation: fadeIn 0.6s ease-out 0.3s both;
+    margin-bottom: 2rem;
+}
+
+/* Form elements */
+.register-form .form-control,
+.register-form .form-select {
+    height: 46px;
+    padding: 0.75rem 1rem;
+    font-size: 16px;
+    border-radius: 8px;
+    border: 2px solid #e0e7ff;
+    background-color: #ffffff;
+    transition: all 0.2s ease-in-out;
+    width: 100%;
+    color: #333;
+}
+
+.register-form textarea.form-control {
+    height: auto;
+    min-height: 100px;
+}
+
+.register-form .form-control:focus,
+.register-form .form-select:focus {
+    border-color: #4A90E2;
+    box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.1);
+    outline: none;
+}
+
+.register-form .form-label {
+    font-weight: 500;
+    color: #495057;
+    margin-bottom: 0.5rem;
+}
+
+.register-form .form-text {
+    color: #6c757d;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+/* Form check (for checkboxes) */
+.register-form .form-check {
+    padding-left: 1.75rem;
+    margin-bottom: 1rem;
+}
+
+.register-form .form-check-input {
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-top: 0.15rem;
+    margin-left: -1.75rem;
+    border-radius: 0.25rem;
+    border: 2px solid #e0e7ff;
+}
+
+.register-form .form-check-input:checked {
+    background-color: #4A90E2;
+    border-color: #4A90E2;
+}
+
+.register-form .form-check-label {
+    font-size: 0.9375rem;
+    color: #495057;
+}
+
+/* Button styles */
+.register-btn {
+    height: 56px;
+    border-radius: 12px;
+    padding: 0.875rem;
+    font-size: 1rem;
+    font-weight: 500;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    background: linear-gradient(45deg, #47E2A5, #4A90E2);
+    border: none;
+}
+
+.register-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(71, 226, 165, 0.3);
+}
+
+.register-btn:active {
+    transform: translateY(0);
+}
+
+.btn-loader {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* Login link */
+.login-text {
+    font-size: 0.9375rem;
+    color: #6c757d;
+}
+
+.login-link {
+    color: #4A90E2;
+    text-decoration: none;
+    font-weight: 600;
+    position: relative;
+    transition: color 0.3s ease;
+}
+
+.login-link:hover {
+    color: #2171c7;
+}
+
+.login-link::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 2px;
+    bottom: -2px;
+    left: 0;
+    background-color: #4A90E2;
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+}
+
+.login-link:hover::after {
+    transform: scaleX(1);
+}
+
+/* Background shapes */
+.background-shapes .shape {
+    position: absolute;
+    opacity: 0.05;
+}
+
+.shape.circle {
+    width: clamp(150px, 20vw, 200px);
+    height: clamp(150px, 20vw, 200px);
+    border-radius: 50%;
+    background: #47E2A5;
+    top: -75px;
+    right: -75px;
+    animation: floatAnimation 8s ease-in-out infinite;
+}
+
+.shape.square {
+    width: clamp(100px, 15vw, 150px);
+    height: clamp(100px, 15vw, 150px);
+    background: #E2574A;
+    bottom: -50px;
+    left: -50px;
+    animation: floatAnimation 9s ease-in-out infinite;
+    transform: rotate(45deg);
+}
+
+.shape.triangle {
+    border-left: clamp(50px, 10vw, 100px) solid transparent;
+    border-right: clamp(50px, 10vw, 100px) solid transparent;
+    border-bottom: clamp(85px, 17vw, 170px) solid #4A90E2;
+    top: 50%;
+    left: -75px;
+    animation: floatAnimation 7s ease-in-out infinite;
+}
+
+.shape.rectangle {
+    width: clamp(150px, 20vw, 200px);
+    height: clamp(75px, 10vw, 100px);
+    background: #E247A5;
+    bottom: 20%;
+    right: -75px;
+    animation: floatAnimation 10s ease-in-out infinite;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideUpFade {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes floatAnimation {
+    0%, 100% {
+        transform: translateY(0) rotate(0deg);
+    }
+    50% {
+        transform: translateY(-20px) rotate(5deg);
+    }
+}
+
+.input-group-animate {
+    opacity: 0;
+    transform: translateX(-20px);
+    animation: slideInLeft 0.5s ease-out forwards;
+}
+
+@keyframes slideInLeft {
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Error states */
+.invalid-feedback {
+    display: block;
+    color: #dc3545;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+.register-form .form-control.is-invalid,
+.register-form .form-select.is-invalid {
+    border-color: #dc3545;
+}
+
+/* Mobile optimization */
+@media (max-width: 768px) {
+    .register-container {
+        padding: 1rem;
+    }
+
+    .register-card {
+        margin: 0;
+    }
+
+    .card-body {
+        padding: 1.5rem !important;
+    }
+    
+    .register-form .form-control,
+    .register-form .form-select {
+        font-size: 16px; /* Prevent zoom on iOS */
+    }
+
+    .background-shapes .shape {
+        opacity: 0.03;
+    }
+}
+
+/* Accessibility - Reduce motion */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('.register-form');
+    const submitBtn = form.querySelector('.register-btn');
+    const btnText = submitBtn.querySelector('.btn-text');
+    const btnLoader = submitBtn.querySelector('.btn-loader');
+
+    // Add necessary classes to Django form inputs
+    document.querySelectorAll('.register-form input, .register-form select, .register-form textarea').forEach(element => {
+        if (element.type !== 'checkbox' && element.type !== 'radio' && element.type !== 'hidden') {
+            element.classList.add('form-control');
+        }
+        
+        if (element.type === 'checkbox') {
+            element.classList.add('form-check-input');
+            // Wrap checkbox in form-check div if not already
+            const parent = element.parentElement;
+            if (!parent.classList.contains('form-check')) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'form-check';
+                parent.insertBefore(wrapper, element);
+                wrapper.appendChild(element);
+                
+                // Move label into the wrapper if it exists
+                const id = element.getAttribute('id');
+                if (id) {
+                    const label = document.querySelector(`label[for="${id}"]`);
+                    if (label) {
+                        wrapper.appendChild(label);
+                        label.classList.add('form-check-label');
+                    }
+                }
+            }
+        }
+        
+        if (element.tagName === 'SELECT') {
+            element.classList.add('form-select');
+        }
+    });
+
+    // Form submission animation
+    form.addEventListener('submit', function(e) {
+        if (form.checkValidity()) {
+            btnText.style.opacity = '0';
+            btnLoader.classList.remove('d-none');
+            submitBtn.disabled = true;
+        } else {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    });
+
+    // Animation for form elements
+    const formGroups = document.querySelectorAll('.input-group-animate');
+    formGroups.forEach((group, index) => {
+        group.style.animationDelay = `${0.2 + (index * 0.1)}s`;
+    });
+    
+    // Handle help text display
+    document.querySelectorAll('.register-form .helptext').forEach(helpText => {
+        const helpDiv = document.createElement('div');
+        helpDiv.className = 'form-text';
+        helpDiv.innerHTML = helpText.innerHTML;
+        helpText.parentNode.insertBefore(helpDiv, helpText.nextSibling);
+        helpText.style.display = 'none';
+    });
+    
+    // Handle Django's error list
+    document.querySelectorAll('.register-form .errorlist').forEach(errorList => {
+        errorList.classList.add('list-unstyled', 'mb-0');
+        errorList.querySelectorAll('li').forEach(error => {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'invalid-feedback d-block';
+            errorDiv.textContent = error.textContent;
+            errorList.parentNode.insertBefore(errorDiv, errorList.nextSibling);
+        });
+        errorList.style.display = 'none';
+    });
+    
+    // Mark fields with errors
+    document.querySelectorAll('.register-form .invalid-feedback').forEach(feedback => {
+        const input = feedback.previousElementSibling;
+        if (input && (input.classList.contains('form-control') || input.classList.contains('form-select'))) {
+            input.classList.add('is-invalid');
+        }
+    });
+});
+</script>
+{% endblock %}

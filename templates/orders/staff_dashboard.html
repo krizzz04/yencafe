@@ -1,224 +1,166 @@
 {% extends 'base/base.html' %}
 
-{% block content %}
-<div class="container mt-4">
-    <h2>Order Dashboard</h2>
-    
-    <!-- Order Status Filter -->
-    <div class="mb-4">
-        <div class="btn-group">
-            <button class="btn btn-outline-primary active" data-status="all">All Orders</button>
-            <button class="btn btn-outline-primary" data-status="PLACED">Placed</button>
-            <button class="btn btn-outline-warning" data-status="PREPARING">Preparing</button>
-            <button class="btn btn-outline-success" data-status="READY">Ready</button>
-            <button class="btn btn-outline-info" data-status="COMPLETED">Completed</button>
-            <button class="btn btn-outline-danger" data-status="CANCELLED">Cancelled</button>
-        </div>
-    </div>
+    {% block content %}
+    <div class="container mt-4">
+        <h2>Order Dashboard</h2>
 
-    <!-- Orders Table -->
-    <div class="table-responsive">
-        <table class="table table-hover">
-            <thead>
-                <tr>
-                    <th>Order ID</th>
-                    <th>Customer</th>
-                    <th>Items</th>
-                    <th>Total</th>
-                    <th>Current Status</th>
-                    <th>New Status</th>
-                    <th>Time</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for order in orders %}
-                <tr class="order-row" data-status="{{ order.status }}">
-                    <td>#{{ order.id }}</td>
-                    <td>{{ order.user.username }}</td>
-                    <td>
-                        {% for item in order.items.all %}
-                        <div>{{ item.quantity }}x {{ item.menu_item.name }}</div>
-                        {% endfor %}
-                        {% if order.special_instructions %}
-                        <small class="text-muted">Note: {{ order.special_instructions }}</small>
-                        {% endif %}
-                    </td>
-                    <td>₹{{ order.total_amount }}</td>
-                    <td>
-                        <span class="badge 
-                            {% if order.status == 'PLACED' %}bg-primary
-                            {% elif order.status == 'PREPARING' %}bg-warning
-                            {% elif order.status == 'READY' %}bg-success
-                            {% elif order.status == 'COMPLETED' %}bg-info
-                            {% else %}bg-danger{% endif %}">
-                            {{ order.get_status_display }}
-                        </span>
-                    </td>
-                    <td>
-                        <form class="update-status-form" method="post" 
-                              action="{% url 'orders:update-order-status' order.id %}">
-                            {% csrf_token %}
-                            <select class="form-select form-select-sm status-select" 
-                                    name="status">
-                                <option value="">Select New Status</option>
-                                {% for status_code, status_label in order.STATUS_CHOICES %}
-                                    {% if status_code != order.status %}
-                                    <option value="{{ status_code }}">{{ status_label }}</option>
-                                    {% endif %}
-                                {% endfor %}
-                            </select>
-                            <button type="submit" class="btn btn-sm btn-primary mt-2">
+        <div class="mb-4 d-flex align-items-center gap-3">
+            <div class="btn-group">
+                <a href="{% url 'orders:staff-dashboard' %}{% if current_date != 'all' %}?date={{ current_date }}{% endif %}" 
+                   class="btn btn-outline-secondary {% if current_status == 'all' %}active{% endif %}">
+                    All Orders
+                </a>
+                <a href="{% url 'orders:staff-dashboard' %}?status=PLACED{% if current_date != 'all' %}&date={{ current_date }}{% endif %}" 
+                   class="btn btn-outline-primary {% if current_status == 'PLACED' %}active{% endif %}">
+                    Placed
+                </a>
+                <a href="{% url 'orders:staff-dashboard' %}?status=PREPARING{% if current_date != 'all' %}&date={{ current_date }}{% endif %}" 
+                   class="btn btn-outline-warning {% if current_status == 'PREPARING' %}active{% endif %}">
+                    Preparing
+                </a>
+                <a href="{% url 'orders:staff-dashboard' %}?status=READY{% if current_date != 'all' %}&date={{ current_date }}{% endif %}" 
+                   class="btn btn-outline-success {% if current_status == 'READY' %}active{% endif %}">
+                    Ready
+                </a>
+                <a href="{% url 'orders:staff-dashboard' %}?status=COMPLETED{% if current_date != 'all' %}&date={{ current_date }}{% endif %}" 
+                   class="btn btn-outline-info {% if current_status == 'COMPLETED' %}active{% endif %}">
+                    Completed
+                </a>
+                <a href="{% url 'orders:staff-dashboard' %}?status=CANCELLED{% if current_date != 'all' %}&date={{ current_date }}{% endif %}" 
+                   class="btn btn-outline-danger {% if current_status == 'CANCELLED' %}active{% endif %}">
+                    Cancelled
+                </a>
+            </div>
+
+            <select class="form-select" style="width: auto;" onchange="window.location.href=this.value">
+                <option value="{% url 'orders:staff-dashboard' %}{% if current_status != 'all' %}?status={{ current_status }}{% endif %}"
+                        {% if not current_date or current_date == 'all' %}selected{% endif %}>All Time</option>
+                <option value="{% url 'orders:staff-dashboard' %}?date=today{% if current_status != 'all' %}&status={{ current_status }}{% endif %}"
+                        {% if current_date == 'today' %}selected{% endif %}>Today</option>
+                <option value="{% url 'orders:staff-dashboard' %}?date=yesterday{% if current_status != 'all' %}&status={{ current_status }}{% endif %}"
+                        {% if current_date == 'yesterday' %}selected{% endif %}>Yesterday</option>
+                <option value="{% url 'orders:staff-dashboard' %}?date=last7days{% if current_status != 'all' %}&status={{ current_status }}{% endif %}"
+                        {% if current_date == 'last7days' %}selected{% endif %}>Last 7 Days</option>
+                <option value="{% url 'orders:staff-dashboard' %}?date=last30days{% if current_status != 'all' %}&status={{ current_status }}{% endif %}"
+                        {% if current_date == 'last30days' %}selected{% endif %}>Last 30 Days</option>
+            </select>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover" id="order-table">  <thead>
+                    <tr>
+                        <th>Order ID</th>
+                        <th>Customer</th>
+                        <th>Items</th>
+                        <th>Total</th>
+                        <th>Current Status</th>
+                        <th>New Status</th>
+                        <th>Time</th>
+                        <th>Action</th>
+                        <th>Table Number</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td>#{{ order.id }}</td>
+                        <td>{{ order.user.username }}</td>
+                        <td>
+                            {% for item in order.order_items %}
+                            <div>{{ item.quantity }}x {{ item.menu_item.name }}</div>
+                            {% endfor %}
+                            {% if order.special_instructions %}
+                            <small class="text-muted">Note: {{ order.special_instructions }}</small>
+                            {% endif %}
+                        </td>
+                        <td>₹{{ order.total_amount }}</td>
+                        <td>
+                            <span class="badge 
+                                {% if order.status == 'PLACED' %}bg-primary
+                                {% elif order.status == 'PREPARING' %}bg-warning
+                                {% elif order.status == 'READY' %}bg-success
+                                {% elif order.status == 'COMPLETED' %}bg-info
+                                {% else %}bg-danger{% endif %}">
+                                {{ order.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <form class="update-status-form" method="post" 
+                                action="{% url 'orders:update-order-status' order.id %}">
+                                {% csrf_token %}
+                                <select class="form-select form-select-sm status-select" 
+                                        name="status">
+                                    <option value="">Select New Status</option>
+                                    {% for status_code, status_label in order.STATUS_CHOICES %}
+                                        {% if status_code != order.status %}
+                                        <option value="{{ status_code }}">{{ status_label }}</option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" class="btn btn-sm btn-primary mt-2">
+                                    Update Status
+                                </button>
+                            </form>
+                        </td>
+                        <td>{{ order.created_at|date:"M d, H:i" }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-primary update-status" 
+                                    data-order-id="{{ order.id }}">
                                 Update Status
                             </button>
-                        </form>
-                    </td>
-                    <td>{{ order.created_at|date:"M d, H:i" }}</td>
-                    <td>
-                        <button class="btn btn-sm btn-primary update-status" 
-                                data-order-id="{{ order.id }}">
-                            Update Status
-                        </button>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<!-- Success Modal -->
-<div class="modal fade" id="successModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title">Success</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p id="successMessage"></p>
-            </div>
+                        </td>
+                        <td>{{ order.table_number }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
-</div>
 
-<!-- Error Modal -->
-<div class="modal fade" id="errorModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title">Error</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p id="errorMessage"></p>
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}
+    {% endblock %}
 
-{% block extra_js %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const successModal = new bootstrap.Modal(document.getElementById('successModal'));
-    const errorModal = new bootstrap.Modal(document.getElementById('errorModal'));
-
-    // Handle form submission
-    document.querySelectorAll('.update-status-form').forEach(form => {
-        form.addEventListener('submit', async function(e) {
-            e.preventDefault();
+    {% block extra_js %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const buttons = document.querySelectorAll('[data-filter]');
             
-            const select = this.querySelector('.status-select');
-            const newStatus = select.value;
-            const submitButton = this.querySelector('button');
-
-            if (!newStatus) {
-                document.getElementById('errorMessage').textContent = 'Please select a new status';
-                errorModal.show();
-                return;
-            }
-
-            // Show loading state
-            submitButton.disabled = true;
-            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Updating...';
-
-            try {
-                const formData = new FormData(this);
-                const response = await fetch(this.action, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-CSRFToken': getCookie('csrftoken')
-                    }
+            buttons.forEach(button => {
+                button.addEventListener('click', function() {
+                    // Remove active class from all buttons
+                    buttons.forEach(btn => btn.classList.remove('active'));
+                    // Add active class to clicked button
+                    this.classList.add('active');
+                    
+                    const filterValue = this.getAttribute('data-filter');
+                    const rows = document.querySelectorAll('#order-table tbody tr');
+                    
+                    rows.forEach(row => {
+                        const statusBadge = row.querySelector('td:nth-child(5) span.badge');
+                        if (!statusBadge) return;
+                        
+                        // Get the actual text content from the badge
+                        const currentStatus = statusBadge.textContent.trim();
+                        
+                        // Show/hide based on filter
+                        if (filterValue === 'all') {
+                            row.style.display = '';
+                        } else {
+                            // Match the status text exactly as it appears in the STATUS_CHOICES
+                            const statusMap = {
+                                'PLACED': 'Placed',
+                                'PREPARING': 'Preparing',
+                                'READY': 'Ready',
+                                'COMPLETED': 'Completed',
+                                'CANCELLED': 'Cancelled'
+                            };
+                            row.style.display = (currentStatus === statusMap[filterValue]) ? '' : 'none';
+                        }
+                    });
                 });
-
-                const data = await response.json();
-                console.log('Response:', data);
-
-                if (!response.ok) {
-                    throw new Error(data.error || 'Failed to update status');
-                }
-
-                // Show success message
-                document.getElementById('successMessage').textContent = data.message;
-                successModal.show();
-
-                // Update the status badge immediately
-                const row = this.closest('tr');
-                const statusBadge = row.querySelector('.badge');
-                if (statusBadge) {
-                    statusBadge.textContent = data.status_display;
-                    statusBadge.className = 'badge ' + getStatusClass(data.status);
-                }
-
-                // Reset form and button
-                submitButton.disabled = false;
-                submitButton.innerHTML = 'Update Status';
-                select.value = '';
-
-                // Refresh page after success
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1500);
-
-            } catch (error) {
-                console.error('Error:', error);
-                // Reset button state
-                submitButton.disabled = false;
-                submitButton.innerHTML = 'Update Status';
-                
-                document.getElementById('errorMessage').textContent = error.message;
-                errorModal.show();
-            }
+            });
+            
+            // Trigger 'all' filter on page load
+            document.querySelector('[data-filter="all"]').click();
         });
-    });
-
-    function getStatusClass(status) {
-        const statusClasses = {
-            'PLACED': 'bg-primary',
-            'PREPARING': 'bg-warning',
-            'READY': 'bg-success',
-            'COMPLETED': 'bg-info',
-            'CANCELLED': 'bg-danger'
-        };
-        return statusClasses[status] || 'bg-secondary';
-    }
-
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
-});
-</script>
-{% endblock %} 
+    </script>
+{% endblock %}
